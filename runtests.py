@@ -45,7 +45,7 @@ if not settings.configured:
 def main():
     from django.test.simple import DjangoTestSuiteRunner
     failures = DjangoTestSuiteRunner(
-        verbosity=1, interactive=True, failfast=False).run_tests(['tests'])
+        verbosity=1, interactive=True, failfast=False).run_tests(['tests.VersionedForeignKeyTest'])
     sys.exit(failures)
 
 

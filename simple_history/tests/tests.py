@@ -6,6 +6,8 @@ from django.test import TestCase
 from django_webtest import WebTest
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
+import itertools
+
 try:
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -413,3 +415,41 @@ class AdminSiteTest(WebTest):
         change_page.form.submit()
         self.assertEqual([p.history_user for p in Poll.history.all()],
                          [self.user, self.user])
+
+
+class VersionedForeignKeyTest(TestCase):
+    def test(self):
+        poll = Poll.objects.create(question='Universal question of universe and everything else',
+                                   pub_date=datetime.now())
+
+        self.assertEqual(poll.choices.count(), 0)
+        self.assertEqual(poll.history.count(), 1)
+
+        self.assertRaises(Exception, Choice.objects.create, poll=poll, choice=42, votes=42)
+        choice1 = Choice(poll=poll, choice='42', votes=42)
+        self.assertRaises(Exception, choice1.save)
+
+        self.assertEqual(poll.minions.count(), 0)
+        self.assertEqual(poll.history.count(), 1)
+
+        with poll.history:
+            choice1.save()
+            Choice.objects.create(poll=poll, choice=42, votes=42)
+
+        self.assertEqual(poll.minions.count(), 2)
+        self.assertEqual(poll.history.count(), 2)
+
+        self.assertEqual(poll.history.all()[0].choices.count(), 2)
+        self.assertEqual(poll.history.all()[1].choices.count(), 0)
+
+        self.assertRaises(Exception, choice1.delete)
+
+        with poll:
+            choice1.delete()
+
+        self.assertEqual(poll.choices.count(), 1)
+        self.assertEqual(poll.history.all().count(), 3)
+
+        self.assertEqual(poll.history.all()[0].choices.count(), 1)
+        self.assertEqual(poll.history.all()[1].choices.count(), 2)
+        self.assertEqual(poll.history.all()[2].choices.count(), 3)
